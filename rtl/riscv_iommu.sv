@@ -17,6 +17,8 @@
 // Description: RISC-V IOMMU Top Module.
 
 module riscv_iommu #(
+    // Use the AXI to REG bridge or not
+    parameter bit AXI_PROGRAM_INTERFACE         = 0,
     // Number of IOTLB entries
     parameter int unsigned  IOTLB_ENTRIES       = 4,
     // Number of DDTC entries
@@ -93,8 +95,11 @@ module riscv_iommu #(
     output axi_req_t        ds_req_o,
 
     // Programming Interface (Slave)
-    input  axi_req_slv_t    prog_req_i,
-    output axi_rsp_slv_t    prog_resp_o,
+    input  axi_req_slv_t    axi_prog_req_i,
+    output axi_rsp_slv_t    axi_prog_resp_o,
+
+    input  reg_req_t        reg_prog_req_i,
+    output reg_rsp_t        reg_prog_rsp_o,
 
     output logic [(N_INT_VEC-1):0] wsi_wires_o
 );
@@ -404,27 +409,35 @@ module riscv_iommu #(
     endgenerate
 
     //# Programming Interface
-    rv_iommu_prog_if #(
-        .ADDR_WIDTH     (ADDR_WIDTH     ),
-        .DATA_WIDTH     (DATA_WIDTH     ),
-        .ID_WIDTH       (ID_SLV_WIDTH   ),
-        .USER_WIDTH     (USER_WIDTH     ),
-        .axi_req_t      (axi_req_slv_t  ),
-        .axi_rsp_t      (axi_rsp_slv_t  ),
-        .reg_req_t      (reg_req_t      ),
-        .reg_rsp_t      (reg_rsp_t      )
-    ) i_rv_iommu_prog_if (
-        .clk_i          (clk_i          ),
-        .rst_ni         (rst_ni         ),
+    if (AXI_PROGRAM_INTERFACE) begin: gen_axi2reg_bridge
+      rv_iommu_prog_if #(
+          .ADDR_WIDTH     (ADDR_WIDTH     ),
+          .DATA_WIDTH     (DATA_WIDTH     ),
+          .ID_WIDTH       (ID_SLV_WIDTH   ),
+          .USER_WIDTH     (USER_WIDTH     ),
+          .axi_req_t      (axi_req_slv_t  ),
+          .axi_rsp_t      (axi_rsp_slv_t  ),
+          .reg_req_t      (reg_req_t      ),
+          .reg_rsp_t      (reg_rsp_t      )
+      ) i_rv_iommu_prog_if (
+          .clk_i          (clk_i          ),
+          .rst_ni         (rst_ni         ),
 
-        // From IOMMU ext port
-        .prog_req_i     (prog_req_i     ),
-        .prog_resp_o    (prog_resp_o    ),
+          // From IOMMU ext port
+          .prog_req_i     (axi_prog_req_i     ),
+          .prog_resp_o    (axi_prog_resp_o    ),
 
-        // To SW interface wrapper
-        .regmap_req_o   (regmap_req     ),
-        .regmap_resp_i  (regmap_resp    )
-    );
+          // To SW interface wrapper
+          .regmap_req_o   (regmap_req     ),
+          .regmap_resp_i  (regmap_resp    )
+      );
+
+      assign reg_prog_rsp_o = '0;
+    end else begin: gen_no_axi2reg_bridge
+      assign regmap_req = reg_prog_req_i;
+      assign reg_prog_rsp_o = regmap_resp;
+      assign axi_prog_resp_o = '0;
+    end
 
     //# Data Structures Interface
     rv_iommu_ds_if #(
