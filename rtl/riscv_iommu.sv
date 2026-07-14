@@ -57,6 +57,10 @@ module riscv_iommu #(
     parameter int   ID_SLV_WIDTH    = -1,
     /// AXI user width
     parameter int   USER_WIDTH      = 1,
+    /// AXI SMMU Stream ID Width
+    parameter int   AXI_HAS_STREAM_ID = 1,
+    /// AXI SMMU Sub-Stream ID Width
+    parameter int   AXI_HAS_SUB_STREAM_ID = 1,
     /// AXI AW Channel struct type
     parameter type aw_chan_t        = logic,
     /// AXI W Channel struct type
@@ -142,6 +146,10 @@ module riscv_iommu #(
 
     logic [15:0]                    gscid;
     logic [19:0]                    pscid;
+
+    logic [23:0] ar_stream_id, aw_stream_id;
+    logic [19:0] ar_substream_id, aw_substream_id;
+    logic ar_stream_id_valid, aw_stream_id_valid;
 
     // AXI size parameters. To boundary check logic
     // AxBURST
@@ -835,6 +843,29 @@ module riscv_iommu #(
         .slv_resp_o   (error_rsp  )
   );
 
+  if (AXI_HAS_STREAM_ID) begin: gen_smmu_interface_connection
+    assign ar_stream_id = dev_tr_req_i.ar.stream_id;
+    assign aw_stream_id = dev_tr_req_i.aw.stream_id;
+    if (AXI_HAS_SUB_STREAM_ID) begin: gen_substreams_connection
+      assign ar_substream_id = dev_tr_req_i.ar.substream_id;
+      assign aw_substream_id = dev_tr_req_i.aw.substream_id;
+      assign ar_stream_id_valid = dev_tr_req_i.ar.ss_id_valid;
+      assign aw_stream_id_valid = dev_tr_req_i.aw.ss_id_valid;
+    end else begin: gen_substreams_tieoffs
+      assign ar_substream_id = '0;
+      assign aw_substream_id = '0;
+      assign ar_stream_id_valid = '0;
+      assign aw_stream_id_valid = '0;
+    end
+  end else begin: gen_smmu_internal_connection
+    assign ar_stream_id = '0;
+    assign aw_stream_id = '0;
+    assign ar_substream_id = '0;
+    assign aw_substream_id = '0;
+    assign ar_stream_id_valid = '0;
+    assign aw_stream_id_valid = '0;
+  end
+
   //# Transaction control
     // Monitor incoming request and select parameters according to the source channel
     always_comb begin : transaction_control_comb
@@ -877,9 +908,9 @@ module riscv_iommu #(
                 // Tags
                 trans_iova      =  dev_tr_req_i.ar.addr;
                 // AXI DVM extension for SMMU
-                trans_did       =  dev_tr_req_i.ar.stream_id;
-                trans_pv        =  dev_tr_req_i.ar.ss_id_valid;
-                trans_pid       =  dev_tr_req_i.ar.substream_id;
+                trans_did       =  ar_stream_id;
+                trans_pv        =  ar_stream_id_valid;
+                trans_pid       =  ar_substream_id;
                 // ARPROT[2] indicates data access (r) when LOW, instruction access (rx) when HIGH
                 trans_type      = (dev_tr_req_i.ar.prot[2]) ? (rv_iommu::UNTRANSLATED_RX) : (rv_iommu::UNTRANSLATED_R);
                 trans_priv      =  dev_tr_req_i.ar.prot[0]; // AxPROT[0] indicates privileged transaction (supervisor lvl) when set
@@ -918,9 +949,9 @@ module riscv_iommu #(
                 // Tags
                 trans_iova      =  dev_tr_req_i.aw.addr;
                 // AXI DVM extension for SMMU
-                trans_did       =  dev_tr_req_i.aw.stream_id;
-                trans_pv        =  dev_tr_req_i.aw.ss_id_valid;
-                trans_pid       =  dev_tr_req_i.aw.substream_id;
+                trans_did       =  aw_stream_id;
+                trans_pv        =  aw_stream_id_valid;
+                trans_pid       =  aw_substream_id;
                 trans_type      =  rv_iommu::UNTRANSLATED_W;
                 trans_priv      =  dev_tr_req_i.aw.prot[0];
 
