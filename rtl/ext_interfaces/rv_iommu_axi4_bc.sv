@@ -20,11 +20,13 @@
 
 /* verilator lint_off WIDTH */
 
-module rv_iommu_axi4_bc (
+module rv_iommu_axi4_bc #(
+  parameter rv_iommu::iommu_cfg_t Cfg = rv_iommu::DefaultCfg
+)(
     // AxVALID
     input  logic                    request_i,
     // AxADDR
-    input  logic [riscv::VLEN-1:0]  addr_i,
+    input  logic [Cfg.VLEN-1:0]     addr_i,
     // AxBURST
     input  axi_pkg::burst_t         burst_type_i,
     // AxLEN
@@ -65,7 +67,7 @@ module rv_iommu_axi4_bc (
                 axi_pkg::BURST_WRAP: begin
                     // wrap_boundary = (start_address/(number_bytes*burst_length_i)) * (number_bytes*burst_length_i)
                     // address_n = wrap_boundary + (number_bytes * burst_length_i)
-                    logic [riscv::PLEN-1:0] wrap_boundary;
+                    logic [Cfg.PLEN-1:0] wrap_boundary;
 
                     // by spec, N of transfers must be {2, 4, 8, 16}
                     // So, ARLEN must be {1, 3, 7, 15}

@@ -32,7 +32,8 @@
 */
 
 module rv_iommu_mrif_handler #(
-    
+    // IOMMU Configuration structure
+    parameter rv_iommu::iommu_cfg_t Cfg = rv_iommu::DefaultCfg,
     /// AXI Full request struct type
     parameter type  axi_req_t       = logic,
     /// AXI Full response struct type
@@ -83,7 +84,7 @@ module rv_iommu_mrif_handler #(
     mrif_write_t wr_state_q, wr_state_n;
 
     // Physical pointer to access memory
-    logic [riscv::PLEN-1:0] pptr_q, pptr_n;
+    logic [Cfg.PLEN-1:0]    pptr_q, pptr_n;
 
     // MRIF IP register
     logic [63:0] mrif_ip_q, mrif_ip_n;
@@ -115,7 +116,7 @@ module rv_iommu_mrif_handler #(
         // AXI signals
         // AW
         mem_req_o.aw.id     = 4'b0011;
-        mem_req_o.aw.addr   = {{riscv::XLEN-riscv::PLEN{1'b0}}, pptr_q};    // Variable: MRIF and notice MSI
+        mem_req_o.aw.addr   = {{Cfg.XLEN-Cfg.PLEN{1'b0}}, pptr_q};    // Variable: MRIF and notice MSI
         mem_req_o.aw.len    = 8'b0;                                         // One beat
         mem_req_o.aw.size   = 3'b011;                                       // Variable: 64 bits for MRIF IP DW, 32 bits for notice MSI
         mem_req_o.aw.burst  = axi_pkg::BURST_INCR;
@@ -142,7 +143,7 @@ module rv_iommu_mrif_handler #(
 
         // AR
         mem_req_o.ar.id     = 4'b0100;
-        mem_req_o.ar.addr   = {{riscv::XLEN-riscv::PLEN{1'b0}}, pptr_q};    // Physical address to access
+        mem_req_o.ar.addr   = {{Cfg.XLEN-Cfg.PLEN{1'b0}}, pptr_q};    // Physical address to access
         mem_req_o.ar.len    = 8'b1;                                         // Two beats
         mem_req_o.ar.size   = 3'b011;                                       // 64 bits (8 bytes) per beat
         mem_req_o.ar.burst  = axi_pkg::BURST_INCR;                          // Incremental addresses
@@ -315,7 +316,7 @@ module rv_iommu_mrif_handler #(
                     AW_REQ: begin
 
                         mem_req_o.aw_valid                  = 1'b1;
-                        mem_req_o.aw.addr[riscv::PLEN-1:0]  = {notice_ppn_q, 12'b0};    // Notice MSI address
+                        mem_req_o.aw.addr[Cfg.PLEN-1:0]  = {notice_ppn_q, 12'b0};    // Notice MSI address
                         mem_req_o.aw.size                   = 3'b010;                   // 32 bits for notice MSI
 
                         if (mem_resp_i.aw_ready) begin

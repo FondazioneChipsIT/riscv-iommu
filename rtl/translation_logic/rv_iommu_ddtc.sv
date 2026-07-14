@@ -34,12 +34,12 @@ module rv_iommu_ddtc #(
     // Update signals
     input  logic                    update_i,       // update flag
     input  logic [23:0]             up_did_i,       // device ID to be inserted
-    input  logic [(DC_WIDTH-1):0]   up_content_i,   // DC to be inserted
+    input  logic [DC_WIDTH-1:0]     up_content_i,   // DC to be inserted
 
     // Lookup signals
     input  logic                    lookup_i,       // lookup flag
     input  logic [23:0]             lu_did_i,       // device_id to look for 
-    output logic [(DC_WIDTH-1):0]   lu_content_o,   // DC
+    output logic [DC_WIDTH-1:0]     lu_content_o,   // DC
     output logic                    lu_hit_o        // hit flag
 );
 

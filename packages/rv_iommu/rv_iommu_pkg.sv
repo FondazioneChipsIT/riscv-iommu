@@ -21,13 +21,64 @@
 
 package rv_iommu;
 
+    typedef struct packed {
+      // --- core widths ---
+      int unsigned XLEN; // GPR / datapath width
+      int unsigned VLEN; // virtual  address length
+      int unsigned PLEN; // physical address length
+      int unsigned GPLEN; // guest-physical address length
+      bit IS_XLEN32;
+      bit IS_XLEN64;
+      int unsigned XLEN_ALIGN_BYTES;
+
+      // --- address-translation field widths ---
+      int unsigned ModeW; // satp/hgatp MODE field width
+      int unsigned ASIDW; // ASID field width
+      int unsigned VMIDW; // VMID field width
+      int unsigned PPNW; // PPN  field width
+      int unsigned GPPNW; // guest PPN field width
+      int unsigned GPPN2;
+      int unsigned VPN2;
+
+      // --- paging scheme ---
+      config_pkg::vm_mode_t MODE_SV; // selected VM mode (Sv32/39/48/57)
+      int unsigned SV; // significant VA bits for MODE_SV
+      int unsigned SVX; // significant GPA bits
+      int unsigned VpnLen; // total VPN length
+      int unsigned PtLevels; // number of page-table levels
+    } iommu_cfg_t;
+
+    function automatic iommu_cfg_t gen_iommu_cfg(int unsigned XLEN, int unsigned VLEN, bit IS_RVH);
+      iommu_cfg_t ret;
+      ret.XLEN = XLEN;
+      ret.VLEN = VLEN;
+      ret.PLEN = (XLEN == 32) ? 34 : 56;
+      ret.GPLEN = (XLEN == 32) ? 34 : 41;
+      ret.IS_XLEN32 = (XLEN == 32);
+      ret.IS_XLEN64 = (XLEN == 64);
+      ret.XLEN_ALIGN_BYTES = XLEN/8;
+      ret.ModeW = (XLEN == 32) ? 1 : 4;
+      ret.ASIDW = (XLEN == 32) ? 9 : 16;
+      ret.VMIDW = (XLEN == 32) ? 7 : 14;
+      ret.PPNW = (XLEN == 32) ? 22 : 44;
+      ret.GPPNW = (XLEN == 32) ? 22 : 29;
+      ret.GPPN2 = (XLEN == 32) ? VLEN - 33 : 10;
+      ret.VPN2 = (VLEN-31 < 8) ? VLEN-31 : 8;
+      ret.MODE_SV = (XLEN == 32) ? config_pkg::ModeSv32 : config_pkg::ModeSv39;
+      ret.SV = (XLEN == 32) ? 32 : 39;
+      ret.SVX = (XLEN == 32) ? 34 : 41;
+      ret.VpnLen = (XLEN == 64) ? (IS_RVH ? 29 : 27) : 20;
+      ret.PtLevels = (XLEN == 64) ? 3 : 2;
+      return ret;
+    endfunction
+
     // Device Context max length
-    localparam DEV_ID_MAX_LEN   = 24;
-    localparam PROC_ID_MAX_LEN  = 20;
+    localparam int unsigned DEV_ID_MAX_LEN   = 24;
+    localparam int unsigned PROC_ID_MAX_LEN  = 20;
 
     // to identify memory accesses to virtual guest interrupt files
-    localparam MSI_MASK_LEN     = 52;
-    localparam MSI_PATTERN_LEN  = 52;
+    localparam int unsigned MSI_MASK_LEN     = 52;
+    localparam int unsigned MSI_PATTERN_LEN  = 52;
 
     //--------------------------
     //#  ICVEC values
@@ -407,15 +458,6 @@ package rv_iommu;
         logic           be;
     } fctl_t;
 
-    // Device Directory Table Pointer (ddtp)
-    typedef struct packed {
-        logic [9:0]             reserved_2;
-        logic [riscv::PPNW-1:0] ppn;
-        logic [4:0]             reserved_1;
-        logic                   busy;
-        logic [3:0]             iommu_mode;
-    } ddtp_t;
-
     //--------------------------
     //#  HPM Event IDs
     //--------------------------
@@ -463,50 +505,32 @@ package rv_iommu;
                     ((is_1S_2M && S1_en) || (is_2S_2M && S2_en));
     endfunction : is_trans_2M
 
-    // Computes the paddr based on the page size, ppn and offset
-    // Adapted from MMU function in ariane_pkg
-    function automatic logic [(riscv::GPLEN-1):0] make_gpaddr(
-        input logic S1_en, input logic is_1G, input logic is_2M,
-        input logic [(riscv::VLEN-1):0] vaddr, input riscv::pte_t pte);
-        logic [(riscv::GPLEN-1):0] gpaddr;
-        if (S1_en) begin
-        gpaddr = {pte.ppn[(riscv::GPPNW-1):0], vaddr[11:0]};
-        // Giga page
-        if (is_1G) gpaddr[29:12] = vaddr[29:12];
-        // Mega page
-        if (is_2M) gpaddr[20:12] = vaddr[20:12];
-        end else begin
-        gpaddr = vaddr[(riscv::GPLEN-1):0];
-        end
-        return gpaddr;
-    endfunction : make_gpaddr
-
     // Computes the final gppn based on the guest physical address
     // Adapted from MMU function in ariane_pkg
-    function automatic logic [(riscv::GPPNW-1):0] make_gppn(input logic S1_en, input logic is_1G,
-                                                            input logic is_2M, input logic [28:0] vpn,
-                                                            input riscv::pte_t pte);
-        logic [(riscv::GPPNW-1):0] gppn;
+    function automatic logic [28:0] make_gppn(input logic S1_en, input logic is_1G,
+                                              input logic is_2M, input logic [28:0] vpn,
+                                              input riscv::pte_t pte);
+        logic [28:0] gppn;
         if (S1_en) begin
-        gppn = pte.ppn[(riscv::GPPNW-1):0];
-        if (is_2M) gppn[8:0] = vpn[8:0];
-        if (is_1G) gppn[17:0] = vpn[17:0];
+          gppn = pte.ppn[28:0];
+          if (is_2M) gppn[8:0] = vpn[8:0];
+          if (is_1G) gppn[17:0] = vpn[17:0];
         end else begin
-        gppn = vpn;
+          gppn = vpn;
         end
         return gppn;
     endfunction : make_gppn
 
     // Extract Interrupt File number from GPA
     // The resulting IF number is used to index the corresponding MSI PTE in memory.
-    function automatic logic [(riscv::GPPNW-1):0] extract_imsic_num(input logic [(riscv::GPPNW-1):0] gpaddr, input logic [riscv::GPPNW-1:0] mask);
-        logic [(riscv::GPPNW-1):0] masked_gpaddr, imsic_num;
+    function automatic logic [28:0] extract_imsic_num(input logic [28:0] gpaddr, input logic [28:0] mask);
+        logic [28:0] masked_gpaddr, imsic_num;
         int unsigned i;
 
         masked_gpaddr = gpaddr & mask;
         imsic_num = '0;
         i = 0;
-        for (int unsigned k = 0 ; k < riscv::GPPNW; k++) begin
+        for (int unsigned k = 0 ; k < 28; k++) begin
             if (mask[k]) begin
                 imsic_num[i] = masked_gpaddr[k];
                 i++;
@@ -515,6 +539,26 @@ package rv_iommu;
 
         return imsic_num;
     endfunction : extract_imsic_num
+
+    localparam iommu_cfg_t DefaultCfg = '{
+      XLEN: 64,
+      VLEN: 64,
+      PLEN: 56,
+      IS_XLEN32: 0,
+      IS_XLEN64: 1,
+      XLEN_ALIGN_BYTES: 8,
+      ModeW: 4,
+      ASIDW: 16,
+      VMIDW: 14,
+      PPNW: 44,
+      GPPNW: 29,
+      MODE_SV: config_pkg::ModeSv39,
+      SV: 39,
+      SVX: 41,
+      VpnLen: 29,
+      PtLevels: 3,
+      default: '0
+    };
 
 endpackage
 
