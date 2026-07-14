@@ -355,7 +355,7 @@ module rv_iommu_ptw_sv39x4 #(
                             ptw_stage_n = STAGE_2_FINAL;
                         
                             gpaddr_n    = req_iova_i[Cfg.SVX-1:0];
-                            ptw_pptr_n  = {iohgatp_ppn_i[Cfg.PPNW-1:2], req_iova_i[Cfg.SVX-1:30], 3'b0}
+                            ptw_pptr_n  = {iohgatp_ppn_i[Cfg.PPNW-1:2], req_iova_i[Cfg.SVX-1:30], 3'b0};
                         end 
 
                         // Stage 1 only: Start in S1-L1
