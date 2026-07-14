@@ -76,7 +76,9 @@ module riscv_iommu #(
     /// AXI Full Slave response struct type
     parameter type  axi_rsp_slv_t   = logic,
     /// AXI Full request struct type w/ DVM extension for SMMU
-    parameter type  axi_req_iommu_t = logic,
+    parameter type  axi_translation_req_t = logic,
+    /// AXI Full response structu type
+    parameter type  axi_translation_rsp_t = logic,
     /// Regbus request struct type.
     parameter type  reg_req_t       = logic,
     /// Regbus response struct type.
@@ -86,8 +88,8 @@ module riscv_iommu #(
     input  logic rst_ni,
 
     // Translation Request Interface (Slave)
-    input  axi_req_iommu_t  dev_tr_req_i,
-    output axi_rsp_t        dev_tr_resp_o,
+    input  axi_translation_req_t dev_tr_req_i,
+    output axi_translation_rsp_t dev_tr_resp_o,
 
     // Translation Completion Interface (Master)
     input  axi_rsp_t        dev_comp_resp_i,
