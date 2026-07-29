@@ -151,15 +151,15 @@ module rv_iommu_fq_handler #(
     // NOTE:    data is pushed into the FIFO when event_valid_i is set. Thus, this signal must be set 
     //          only one cycle after a fault/event occurred. Since it is directly driven by AXVALID, the
     //          Error Slave should be able to respond in one cycle
-    fifo_v3 #(
-        .FALL_THROUGH   (1),
-        .DEPTH          (4),
-        .DATA_WIDTH     (rv_iommu::TTYP_LEN + rv_iommu::CAUSE_LEN + Cfg.VLEN + Cfg.SVX + 24 + 20 + 4)
+    cc_fifo #(
+        .FallThrough    (1),
+        .Depth          (4),
+        .DataWidth      (rv_iommu::TTYP_LEN + rv_iommu::CAUSE_LEN + Cfg.VLEN + Cfg.SVX + 24 + 20 + 4)
     ) i_fifo_fq (
         .clk_i      ( clk_i           ),
         .rst_ni     ( rst_ni          ),
+        .clr_i      ( 1'b0            ),
         .flush_i    ( 1'b0            ),
-        .testmode_i ( 1'b0            ),
         .full_o     ( is_full_o       ),
         .empty_o    ( is_empty        ),
         .usage_o    (                 ),

@@ -73,12 +73,13 @@ module rv_iommu_ds_if #(
     logic[1:0] w_select, w_select_fifo;
 
     //# AR Channel (PTW, CDW, CQ, MSIPTW, MRIF handler)
-    stream_arbiter #(
-        .DATA_T ( ar_chan_t ),
-        .N_INP  ( 5         )
+    cc_stream_arbiter #(
+        .data_t ( ar_chan_t ),
+        .NumInp ( 5         )
     ) i_stream_arbiter_ar (
         .clk_i          (clk_i),
         .rst_ni         (rst_ni),
+        .clr_i          (1'b0),
         .inp_data_i     ( {ptw_req_i.ar, cdw_req_i.ar, cq_req_i.ar, msiptw_req_i.ar, mrif_handler_req_i.ar} ),
         .inp_valid_i    ( {ptw_req_i.ar_valid, cdw_req_i.ar_valid, cq_req_i.ar_valid, msiptw_req_i.ar_valid, mrif_handler_req_i.ar_valid} ),
         .inp_ready_o    ( {ptw_resp_o.ar_ready, cdw_resp_o.ar_ready, cq_resp_o.ar_ready, msiptw_resp_o.ar_ready, mrif_handler_resp_o.ar_ready} ),
@@ -88,12 +89,13 @@ module rv_iommu_ds_if #(
     );
 
     //# AW Channel (CQ, FQ, MSI IG, MRIF handler)
-    stream_arbiter #(
-        .DATA_T ( aw_chan_t ),
-        .N_INP  ( 4         )
+    cc_stream_arbiter #(
+        .data_t ( aw_chan_t ),
+        .NumInp ( 4         )
     ) i_stream_arbiter_aw (
         .clk_i          (clk_i),
         .rst_ni         (rst_ni),
+        .clr_i          (1'b0),
         .inp_data_i     ( {cq_req_i.aw, fq_req_i.aw, msi_ig_req_i.aw, mrif_handler_req_i.aw} ),
         .inp_valid_i    ( {cq_req_i.aw_valid, fq_req_i.aw_valid, msi_ig_req_i.aw_valid, mrif_handler_req_i.aw_valid} ),
         .inp_ready_o    ( {cq_resp_o.aw_ready, fq_resp_o.aw_ready, msi_ig_resp_o.aw_ready, mrif_handler_resp_o.aw_ready} ),
@@ -118,15 +120,15 @@ module rv_iommu_ds_if #(
     // Save AWID whenever a transaction is accepted in AW Channel.
     // While writing data to W Channel, another AW transaction may be accepted, so we need to queue the AWIDs
     // Only CQ, FQ and MSI IG perform writes to memory, so we can have max 3 outstanding transactions
-    fifo_v3 #(
-      .DATA_WIDTH   ( 2    ),
+    cc_fifo #(
+      .DataWidth    ( 2    ),
       // we can have a maximum of 2 oustanding transactions as each port is blocking
-      .DEPTH        ( 2    )
+      .Depth        ( 2    )
     ) i_fifo_w_channel (
       .clk_i      ( clk_i           ),
       .rst_ni     ( rst_ni          ),
+      .clr_i      ( 1'b0            ),
       .flush_i    ( 1'b0            ),
-      .testmode_i ( 1'b0            ),
       .full_o     (                 ),
       .empty_o    (                 ),
       .usage_o    (                 ),
@@ -137,9 +139,9 @@ module rv_iommu_ds_if #(
     );
 
     // For invalid AWIDs for which the request was accepted, or when AW FIFO is empty, CQ channel is selected
-    stream_mux #(
-        .DATA_T ( w_chan_t ),
-        .N_INP  ( 4        )
+    cc_stream_mux #(
+        .data_t ( w_chan_t ),
+        .NumInp ( 4        )
     ) i_stream_mux_w (
         .inp_data_i  ( {mrif_handler_req_i.w, msi_ig_req_i.w, fq_req_i.w, cq_req_i.w} ),
         .inp_valid_i ( {mrif_handler_req_i.w_valid, msi_ig_req_i.w_valid, fq_req_i.w_valid, cq_req_i.w_valid} ),
@@ -179,8 +181,8 @@ module rv_iommu_ds_if #(
         endcase
     end
 
-    stream_demux #(
-        .N_OUP ( 5 )
+    cc_stream_demux #(
+        .NumOup ( 5 )
     ) i_stream_demux_r (
         .inp_valid_i ( ds_resp_i.r_valid ),
         .inp_ready_o ( ds_req_o.r_ready  ),
@@ -208,8 +210,8 @@ module rv_iommu_ds_if #(
         endcase
     end
 
-    stream_demux #(
-        .N_OUP ( 4 )
+    cc_stream_demux #(
+        .NumOup ( 4 )
     ) i_stream_demux_b (
         .inp_valid_i ( ds_resp_i.b_valid ),
         .inp_ready_o ( ds_req_o.b_ready  ),
