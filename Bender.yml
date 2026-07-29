@@ -22,9 +22,9 @@ package:
     - "Manuel Rodríguez <manuel.cederog@gmail.com>"
 
 dependencies:
-  common_cells: { git: "https://github.com/pulp-platform/common_cells.git", version: 1.30.0 }
+  common_cells: { git: "https://github.com/pulp-platform/common_cells.git", version: 2.0.0-beta }
   axi: { git: "https://github.com/pulp-platform/axi.git", version: 0.39.2 }
-  register_interface: { git: "https://@github.com/pulp-platform/register_interface.git", version:  0.4.7 }
+  register_interface: { git: "https://github.com/pulp-platform/register_interface.git", rev: common-cells-v2 }
 
 export_include_dirs:
   - include
