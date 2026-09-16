@@ -596,7 +596,7 @@ module rv_iommu_regmap #(
   rv_iommu_field #(
     .DATA_WIDTH      (4),
     .SwAccess(SwAccessRW),
-    .RESVAL  (4'h0)
+    .RESVAL  (4'h1) // 0: off (not pass); 1: baremetal (no translation)
   ) u_ddtp_iommu_mode (
     .clk_i   (clk_i    ),
     .rst_ni  (rst_ni  ),
