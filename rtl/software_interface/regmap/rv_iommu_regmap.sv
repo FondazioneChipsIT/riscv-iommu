@@ -2314,6 +2314,8 @@ module rv_iommu_regmap #(
       assign tr_req_ctl_priv_qs         = 1'b0;
       assign reg2hw.tr_req_ctl.exe.q    = 1'b0;
       assign tr_req_ctl_exe_qs          = 1'b0;
+      assign reg2hw.tr_req_ctl.nw.q     = 1'b0;
+      assign tr_req_ctl_nw_qs           = 1'b0;
       assign reg2hw.tr_req_ctl.pid.q    = '0;
       assign tr_req_ctl_pid_qs          = '0;
       assign reg2hw.tr_req_ctl.pv.q     = 1'b0;
@@ -2554,8 +2556,9 @@ module rv_iommu_regmap #(
     end
   end : gen_msi_cfg_tbl
 
-  // Hardwire unimplemented vectors to zero 
-  for (genvar i = N_INT_VEC; i < 16; i++) begin : gen_msi_cfg_tbl_disabled
+  // Hardwire unimplemented vectors to zero (all of them if MSI generation is not supported)
+  localparam int unsigned N_MSI_CFG_TBL = ((IGS == rv_iommu::MSI_ONLY) || (IGS == rv_iommu::BOTH)) ? N_INT_VEC : 0;
+  for (genvar i = N_MSI_CFG_TBL; i < 16; i++) begin : gen_msi_cfg_tbl_disabled
 
     assign msi_addr_l_qs[i]   = '0;
     assign msi_addr_h_qs[i]   = '0;
